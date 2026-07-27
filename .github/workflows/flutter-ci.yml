@@ -25,4 +25,3 @@ jobs:
         with:
           name: chapterone-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-EOF
