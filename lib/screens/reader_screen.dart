@@ -43,10 +43,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               onChaptersLoaded: (chapters) async {
                 // Save the table of contents to the book so the detail
                 // screen can show a chapter list next time.
-                final parsed = chapters
-                    .map((c) => Chapter(title: c.title ?? 'Untitled', locator: c.href ?? ''))
-                    .toList();
-                widget.book.chapters = parsed;
+                final parsed = chapters.map((c) => Chapter(title: c.title, locator: c.href)).toList(); 
                 final books = await StorageService.loadLibrary();
                 final index = books.indexWhere((b) => b.id == widget.book.id);
                 if (index != -1) {
