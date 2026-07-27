@@ -16,6 +16,8 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
+      - name: Generate missing Android platform files
+        run: flutter create --platforms=android .
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
