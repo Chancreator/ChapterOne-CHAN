@@ -40,4 +40,31 @@ class FileService {
       shelfId: shelfId,
     );
   }
+
+  // Opens a file picker limited to common image types, copies the image
+  // into the app's local storage, and returns the new local path. Using
+  // file_picker (already a dependency) instead of adding a separate
+  // image-picker package.
+  static Future<String?> pickCoverImage(String bookId) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+    );
+
+    if (result == null || result.files.single.path == null) return null;
+
+    final pickedPath = result.files.single.path!;
+    final ext = p.extension(pickedPath).toLowerCase();
+
+    final appDir = await getApplicationDocumentsDirectory();
+    final coversDir = Directory(p.join(appDir.path, 'covers'));
+    if (!await coversDir.exists()) {
+      await coversDir.create(recursive: true);
+    }
+
+    // Name the file after the book id so re-picking a cover overwrites
+    // the old one instead of accumulating unused images.
+    final destPath = p.join(coversDir.path, '$bookId$ext');
+    final destFile = await File(pickedPath).copy(destPath);
+    return destFile.path;
+  }
 }
