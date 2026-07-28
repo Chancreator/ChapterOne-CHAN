@@ -11,6 +11,7 @@ class Book {
   String description; // user-editable or auto-filled summary
   List<Chapter> chapters; // table of contents, if available
   String shelfId; // which shelf this book sits on
+  String? coverImagePath; // custom cover image, if the user set one
 
   Book({
     required this.id,
@@ -21,6 +22,7 @@ class Book {
     this.description = '',
     List<Chapter>? chapters,
     this.shelfId = 'default',
+    this.coverImagePath,
   }) : chapters = chapters ?? [];
 
   Map<String, dynamic> toJson() => {
@@ -32,6 +34,7 @@ class Book {
         'description': description,
         'chapters': chapters.map((c) => c.toJson()).toList(),
         'shelfId': shelfId,
+        'coverImagePath': coverImagePath,
       };
 
   factory Book.fromJson(Map<String, dynamic> json) => Book(
@@ -45,5 +48,6 @@ class Book {
             .map((c) => Chapter.fromJson(c))
             .toList(),
         shelfId: json['shelfId'] ?? 'default',
+        coverImagePath: json['coverImagePath'],
       );
 }
