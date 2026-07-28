@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/book.dart';
 import '../models/shelf.dart';
@@ -273,8 +274,6 @@ class _ShelfSection extends StatelessWidget {
                   child: CircleAvatar(radius: 11, backgroundColor: shelf.color),
                 ),
                 const SizedBox(width: 12),
-                // Explicit drag handle so it doesn't fight with the
-                // horizontal book-reordering gestures below.
                 ReorderableDragStartListener(
                   index: index,
                   child: const Icon(Icons.drag_handle, color: Colors.grey),
@@ -313,7 +312,6 @@ class _ShelfSection extends StatelessWidget {
               ],
             ),
           ),
-          // The wooden shelf plank, tinted with the shelf's chosen color.
           Container(
             height: 14,
             margin: const EdgeInsets.only(top: 4),
@@ -357,6 +355,16 @@ class _BookSpine extends StatelessWidget {
           boxShadow: const [
             BoxShadow(color: Colors.black26, blurRadius: 3, offset: Offset(1, 2)),
           ],
+          image: book.coverImagePath != null
+              ? DecorationImage(
+                  image: FileImage(File(book.coverImagePath!)),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withOpacity(0.25),
+                    BlendMode.darken,
+                  ),
+                )
+              : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
