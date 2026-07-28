@@ -16,12 +16,21 @@ jobs:
         with:
           channel: 'stable'
       - name: Generate missing Android platform files
-        run: flutter create --platforms=android --project-name=chapterone .
+        run: |
+          flutter create --platforms=android --project-name=chapterone .
+          echo "--- Repo root after flutter create ---"
+          ls -la
+          echo "--- android/ contents (if it exists) ---"
+          ls -la android || echo "NO android directory was created"
       - name: Bump Kotlin Gradle plugin version
         run: |
-          sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.20"/' android/settings.gradle
-          echo "--- android/settings.gradle after patch ---"
-          cat android/settings.gradle
+          if [ -f android/settings.gradle ]; then
+            sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.20"/' android/settings.gradle
+            echo "--- android/settings.gradle after patch ---"
+            cat android/settings.gradle
+          else
+            echo "android/settings.gradle not found, skipping patch (see previous step's output for details)"
+          fi
       - run: flutter pub get
       - name: Patch outdated proguard call in flutter_inappwebview_android
         run: |
