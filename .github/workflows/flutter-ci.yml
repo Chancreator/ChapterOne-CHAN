@@ -17,6 +17,11 @@ jobs:
           channel: 'stable'
       - name: Generate missing Android platform files
         run: flutter create --platforms=android --project-name=chapterone .
+      - name: Bump Kotlin Gradle plugin version
+        run: |
+          sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.20"/' android/settings.gradle
+          echo "--- android/settings.gradle after patch ---"
+          cat android/settings.gradle
       - run: flutter pub get
       - name: Patch outdated proguard call in flutter_inappwebview_android
         run: |
