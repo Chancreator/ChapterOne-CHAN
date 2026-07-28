@@ -18,18 +18,22 @@ jobs:
       - name: Generate missing Android platform files
         run: |
           flutter create --platforms=android --project-name=chapterone .
-          echo "--- Repo root after flutter create ---"
-          ls -la
-          echo "--- android/ contents (if it exists) ---"
-          ls -la android || echo "NO android directory was created"
       - name: Bump Kotlin Gradle plugin version
         run: |
-          if [ -f android/settings.gradle ]; then
+          if [ -f android/settings.gradle.kts ]; then
+            echo "Found Kotlin DSL settings.gradle.kts"
+            sed -i 's/id("org.jetbrains.kotlin.android") version "[^"]*"/id("org.jetbrains.kotlin.android") version "2.1.20"/' android/settings.gradle.kts
+            echo "--- android/settings.gradle.kts after patch ---"
+            cat android/settings.gradle.kts
+          elif [ -f android/settings.gradle ]; then
+            echo "Found Groovy settings.gradle"
             sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.20"/' android/settings.gradle
             echo "--- android/settings.gradle after patch ---"
             cat android/settings.gradle
           else
-            echo "android/settings.gradle not found, skipping patch (see previous step's output for details)"
+            echo "No settings.gradle or settings.gradle.kts found!"
+            ls -la android
+            exit 1
           fi
       - run: flutter pub get
       - name: Patch outdated proguard call in flutter_inappwebview_android
