@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/book.dart';
+import '../models/chapter.dart';
+import '../services/file_service.dart';
 import '../services/storage_service.dart';
 import 'reader_screen.dart';
 
@@ -55,6 +58,97 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     });
   }
 
+  Future<void> _pickCover() async {
+    final newPath = await FileService.pickCoverImage(widget.book.id);
+    if (newPath == null) return;
+    final books = await StorageService.loadLibrary();
+    await StorageService.updateBookDetails(
+      books,
+      widget.book.id,
+      coverImagePath: newPath,
+    );
+    setState(() => widget.book.coverImagePath = newPath);
+  }
+
+  Future<void> _addChapterManually() async {
+    final titleController = TextEditingController();
+    final pageController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Chapter'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Chapter title'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: pageController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Page number',
+                hintText: 'e.g. 12',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true) return;
+    final title = titleController.text.trim();
+    final page = pageController.text.trim();
+    if (title.isEmpty || page.isEmpty) return;
+
+    final chapter = Chapter(title: title, locator: page);
+    final books = await StorageService.loadLibrary();
+    await StorageService.addChapter(books, widget.book.id, chapter);
+    setState(() => widget.book.chapters.add(chapter));
+  }
+
+  Future<void> _deleteBook() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Book'),
+        content: Text(
+          'Remove "${widget.book.title}" from your library? This won\'t delete the original file from your device, only from ChapterOne.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final books = await StorageService.loadLibrary();
+    await StorageService.deleteBook(books, widget.book.id);
+    if (mounted) Navigator.pop(context);
+  }
+
   Future<void> _openReader({String? locator}) async {
     await Navigator.push(
       context,
@@ -69,28 +163,68 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   Widget build(BuildContext context) {
     final book = widget.book;
     return Scaffold(
-      appBar: AppBar(title: Text(book.title)),
+      appBar: AppBar(
+        title: Text(book.title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete book',
+            onPressed: _deleteBook,
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 90,
-                height: 130,
-                decoration: BoxDecoration(
-                  color: book.type == BookType.pdf
-                      ? Colors.indigo.shade400
-                      : Colors.teal.shade400,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  book.type == BookType.pdf
-                      ? Icons.picture_as_pdf
-                      : Icons.menu_book,
-                  color: Colors.white,
-                  size: 40,
+              GestureDetector(
+                onTap: _pickCover,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 130,
+                      decoration: BoxDecoration(
+                        color: book.type == BookType.pdf
+                            ? Colors.indigo.shade400
+                            : Colors.teal.shade400,
+                        borderRadius: BorderRadius.circular(6),
+                        image: book.coverImagePath != null
+                            ? DecorationImage(
+                                image: FileImage(File(book.coverImagePath!)),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: book.coverImagePath == null
+                          ? Icon(
+                              book.type == BookType.pdf
+                                  ? Icons.picture_as_pdf
+                                  : Icons.menu_book,
+                              color: Colors.white,
+                              size: 40,
+                            )
+                          : null,
+                    ),
+                    Positioned(
+                      right: 2,
+                      bottom: 2,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 16),
@@ -98,8 +232,6 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Editable title — useful since many PDFs have no
-                    // embedded title metadata and just show the filename.
                     _editingTitle
                         ? Row(
                             children: [
@@ -191,14 +323,24 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                   ),
                 ),
           const SizedBox(height: 24),
-          const Text('Chapters',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Chapters',
+                  style:
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              TextButton.icon(
+                onPressed: _addChapterManually,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add'),
+              ),
+            ],
+          ),
           if (book.chapters.isEmpty)
             Text(
               book.type == BookType.epub
-                  ? 'Chapters will appear here after you open this book once.'
-                  : 'This PDF has no chapter list — use Start Reading to jump to a page.',
+                  ? 'Chapters will appear here after you open this book once, or add your own with the button above.'
+                  : 'Add chapters manually with the button above — each one jumps straight to the page you set.',
               style: const TextStyle(color: Colors.grey),
             )
           else
@@ -207,6 +349,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.bookmark_border),
                 title: Text(chapter.title),
+                subtitle: book.type == BookType.pdf
+                    ? Text('Page ${chapter.locator}')
+                    : null,
                 onTap: () => _openReader(locator: chapter.locator),
               ),
             ),
