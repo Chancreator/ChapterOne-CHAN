@@ -18,23 +18,14 @@ jobs:
       - name: Generate missing Android platform files
         run: |
           flutter create --platforms=android --project-name=chapterone .
-      - name: Bump Kotlin Gradle plugin version
+      - name: Pin AGP and Kotlin to a known-stable combo
         run: |
-          if [ -f android/settings.gradle.kts ]; then
-            echo "Found Kotlin DSL settings.gradle.kts"
-            sed -i 's/id("org.jetbrains.kotlin.android") version "[^"]*"/id("org.jetbrains.kotlin.android") version "2.1.20"/' android/settings.gradle.kts
-            echo "--- android/settings.gradle.kts after patch ---"
-            cat android/settings.gradle.kts
-          elif [ -f android/settings.gradle ]; then
-            echo "Found Groovy settings.gradle"
-            sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.20"/' android/settings.gradle
-            echo "--- android/settings.gradle after patch ---"
-            cat android/settings.gradle
-          else
-            echo "No settings.gradle or settings.gradle.kts found!"
-            ls -la android
-            exit 1
-          fi
+          echo "--- settings.gradle.kts BEFORE patch ---"
+          cat android/settings.gradle.kts
+          sed -i 's/id("com.android.application") version "[^"]*"/id("com.android.application") version "8.7.0"/' android/settings.gradle.kts
+          sed -i 's/id("org.jetbrains.kotlin.android") version "[^"]*"/id("org.jetbrains.kotlin.android") version "2.1.20"/' android/settings.gradle.kts
+          echo "--- settings.gradle.kts AFTER patch ---"
+          cat android/settings.gradle.kts
       - run: flutter pub get
       - name: Patch outdated proguard call in flutter_inappwebview_android
         run: |
