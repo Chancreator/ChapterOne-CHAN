@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import '../models/book.dart';
+import '../models/chapter.dart';
 import '../models/shelf.dart';
 
 class StorageService {
@@ -39,14 +40,33 @@ class StorageService {
     String? title,
     String? description,
     String? shelfId,
+    String? coverImagePath,
   }) async {
     final index = books.indexWhere((b) => b.id == bookId);
     if (index != -1) {
       if (title != null && title.isNotEmpty) books[index].title = title;
       if (description != null) books[index].description = description;
       if (shelfId != null) books[index].shelfId = shelfId;
+      if (coverImagePath != null) books[index].coverImagePath = coverImagePath;
       await saveLibrary(books);
     }
+  }
+
+  static Future<void> addChapter(
+    List<Book> books,
+    String bookId,
+    Chapter chapter,
+  ) async {
+    final index = books.indexWhere((b) => b.id == bookId);
+    if (index != -1) {
+      books[index].chapters.add(chapter);
+      await saveLibrary(books);
+    }
+  }
+
+  static Future<void> deleteBook(List<Book> books, String bookId) async {
+    books.removeWhere((b) => b.id == bookId);
+    await saveLibrary(books);
   }
 
   // ---------- Shelves ----------
