@@ -35,6 +35,15 @@ jobs:
               echo "Patched: $dir/android/build.gradle"
             fi
           done
+      - name: Patch outdated jcenter() call in syncfusion_flutter_pdfviewer
+        run: |
+          find "$HOME/.pub-cache/hosted/pub.dev" -maxdepth 1 -type d -name "syncfusion_flutter_pdfviewer-*" | while read -r dir; do
+            if [ -f "$dir/android/build.gradle" ]; then
+              sed -i "s/jcenter()/mavenCentral()/g" "$dir/android/build.gradle"
+              echo "Patched: $dir/android/build.gradle"
+              cat "$dir/android/build.gradle"
+            fi
+          done
       - run: flutter analyze
       - run: flutter test
       - run: flutter build apk --release
