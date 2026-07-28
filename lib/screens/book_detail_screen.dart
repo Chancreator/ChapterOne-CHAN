@@ -73,6 +73,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   Future<void> _addChapterFile() async {
     final chapter = await FileService.importChapterFile(widget.book.id);
     if (chapter == null) return;
+    if (!mounted) return;
+
+    // Let the user rename it from the default filename-based title.
 
     // Let the user rename it from the default filename-based title.
     final controller = TextEditingController(text: chapter.title);
