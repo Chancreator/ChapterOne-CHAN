@@ -70,33 +70,40 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     setState(() => widget.book.coverImagePath = newPath);
   }
 
-  Future<void> _addChapterManually() async {
-    final titleController = TextEditingController();
-    final pageController = TextEditingController();
+  Future<void> _addChapterFile() async {
+    final chapter = await FileService.importChapterFile(widget.book.id);
+    if (chapter == null) return;
 
-    final result = await showDialog<bool>(
+    // Let the user rename it from the default filename-based title.
+    final controller = TextEditingController(text: chapter.title);
+    final confirmedTitle = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Chapter'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Chapter title'),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: pageController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Page number',
-                hintText: 'e.g. 12',
-              ),
-            ),
-          ],
-        ),
+        title: const Text('Chapter Title'),
+        content: TextField(controller: controller, autofocus: true),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (confirmedTitle != null && confirmedTitle.isNotEmpty) {
+      chapter.title = confirmedTitle;
+    }
+
+    final books = await StorageService.loadLibrary();
+    await StorageService.addChapter(books, widget.book.id, chapter);
+    setState(() => widget.book.chapters.add(chapter));
+  }
+
+  Future<void> _deleteChapter(Chapter chapter) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Chapter'),
+        content: Text('Remove "${chapter.title}" from this book?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -104,21 +111,16 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Add'),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
+    if (confirmed != true) return;
 
-    if (result != true) return;
-    final title = titleController.text.trim();
-    final page = pageController.text.trim();
-    if (title.isEmpty || page.isEmpty) return;
-
-    final chapter = Chapter(title: title, locator: page);
     final books = await StorageService.loadLibrary();
-    await StorageService.addChapter(books, widget.book.id, chapter);
-    setState(() => widget.book.chapters.add(chapter));
+    await StorageService.deleteChapter(books, widget.book.id, chapter.id);
+    setState(() => widget.book.chapters.removeWhere((c) => c.id == chapter.id));
   }
 
   Future<void> _deleteBook() async {
@@ -149,11 +151,15 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     if (mounted) Navigator.pop(context);
   }
 
-  Future<void> _openReader({String? locator}) async {
+  Future<void> _openReader({String? locator, Chapter? chapter}) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ReaderScreen(book: widget.book, jumpTo: locator),
+        builder: (_) => ReaderScreen(
+          book: widget.book,
+          jumpTo: locator,
+          chapter: chapter,
+        ),
       ),
     );
     setState(() {}); // refresh chapter list / progress on return
@@ -330,18 +336,18 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                   style:
                       TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               TextButton.icon(
-                onPressed: _addChapterManually,
+                onPressed: _addChapterFile,
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add'),
+                label: const Text('Add Chapter'),
               ),
             ],
           ),
           if (book.chapters.isEmpty)
-            Text(
-              book.type == BookType.epub
-                  ? 'Chapters will appear here after you open this book once, or add your own with the button above.'
-                  : 'Add chapters manually with the button above — each one jumps straight to the page you set.',
-              style: const TextStyle(color: Colors.grey),
+            const Text(
+              'No chapters yet. If this series has one file per chapter '
+              '(e.g. "Chapter 1.pdf", "Chapter 2.pdf"), add each one here '
+              'instead of importing separate books for them.',
+              style: TextStyle(color: Colors.grey),
             )
           else
             ...book.chapters.map(
@@ -349,10 +355,22 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.bookmark_border),
                 title: Text(chapter.title),
-                subtitle: book.type == BookType.pdf
-                    ? Text('Page ${chapter.locator}')
+                subtitle: chapter.filePath != null
+                    ? Text(chapter.lastPage > 0
+                        ? 'Page ${chapter.lastPage}'
+                        : 'Not started')
+                    : (book.type == BookType.pdf
+                        ? Text('Page ${chapter.locator}')
+                        : null),
+                trailing: chapter.filePath != null
+                    ? IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        onPressed: () => _deleteChapter(chapter),
+                      )
                     : null,
-                onTap: () => _openReader(locator: chapter.locator),
+                onTap: () => chapter.filePath != null
+                    ? _openReader(chapter: chapter)
+                    : _openReader(locator: chapter.locator),
               ),
             ),
         ],
