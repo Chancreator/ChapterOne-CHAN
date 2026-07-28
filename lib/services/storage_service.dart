@@ -64,6 +64,33 @@ class StorageService {
     }
   }
 
+  static Future<void> updateChapterLastPage(
+    List<Book> books,
+    String bookId,
+    String chapterId,
+    int page,
+  ) async {
+    final bookIndex = books.indexWhere((b) => b.id == bookId);
+    if (bookIndex == -1) return;
+    final chapterIndex =
+        books[bookIndex].chapters.indexWhere((c) => c.id == chapterId);
+    if (chapterIndex != -1) {
+      books[bookIndex].chapters[chapterIndex].lastPage = page;
+      await saveLibrary(books);
+    }
+  }
+
+  static Future<void> deleteChapter(
+    List<Book> books,
+    String bookId,
+    String chapterId,
+  ) async {
+    final bookIndex = books.indexWhere((b) => b.id == bookId);
+    if (bookIndex == -1) return;
+    books[bookIndex].chapters.removeWhere((c) => c.id == chapterId);
+    await saveLibrary(books);
+  }
+
   static Future<void> deleteBook(List<Book> books, String bookId) async {
     books.removeWhere((b) => b.id == bookId);
     await saveLibrary(books);
